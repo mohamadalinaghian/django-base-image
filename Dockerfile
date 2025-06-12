@@ -1,45 +1,40 @@
-FROM python:3.12-slim as builder
+# Stage 1: Build
+FROM python:3.12-slim As builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY uv_install_script.sh .
-RUN ./uv_install_script.sh
-
-
-COPY python_pakage.txt .
-RUN  uv venv && uv pip install -r python_pakage.txt
+ARG UID=1000
+ARG GID=1000
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    gcc \
     libpq-dev \
-    libffi-dev \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man \
+  && apt-get clean \
+  && groupadd -g "${GID}" python \
+  && useradd --create-home --no-log-init -u "${UID}" -g "${GID}" python 
 
 
+USER python
 
+ENV PYTHONUNBUFFERED="true" \
+  PYTHONPATH="." \
+  USER="python"
+
+WORKDIR /build
+
+COPY py-pakage.txt .
+RUN python -m venv .venv && \
+    .venv/bin/pip install --upgrade pip && \
+    .venv/bin/pip install --no-cache-dir -r py-pakage.txt
+
+# ----------------------------------------------------------------------
 
 # Stage 2: Runtime
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PYTHONUNBUFFERED=1
 
-# فقط پکیج‌های runtime لازم
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    libffi7 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# کپی فقط venv نهایی از builder
-COPY --from=builder /build/.venv /opt/venv
+COPY --from=builder /build/.venv /venv
