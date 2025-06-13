@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM python:3.13-slim As builder
+FROM python:3.13-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
